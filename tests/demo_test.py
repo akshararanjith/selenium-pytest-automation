@@ -1,64 +1,147 @@
+import pytest
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-# Chrome options
-chrome_options = Options()
-chrome_options.add_argument("--incognito")
-chrome_options.add_experimental_option(
-    "prefs",
-    {
-        "credentials_enable_service": False,
-        "profile.password_manager_enabled": False
-    }
-)
 
-# Launch browser
-driver = webdriver.Chrome(
-    service=Service(ChromeDriverManager().install()),
-    options=chrome_options
-)
 
-wait = WebDriverWait(driver, 10)
 
-try:
-    # Open site
-    driver.get("https://www.saucedemo.com")
-
-    # Login
-    wait.until(EC.presence_of_element_located((By.ID, "user-name"))).send_keys("standard_user")
-    driver.find_element(By.ID, "password").send_keys("secret_sauce")
-    driver.find_element(By.ID, "login-button").click()
-
-    # Add product to cart
-    wait.until(
-        EC.element_to_be_clickable((By.ID, "add-to-cart-sauce-labs-backpack"))
-    ).click()
-
-    # Open cart
-    wait.until(
-        EC.element_to_be_clickable((By.CSS_SELECTOR, '[data-test="shopping-cart-link"]'))
-    ).click()
-
-    # Verify product in cart
-    product_name = wait.until(
-        EC.visibility_of_element_located(
-            (By.CSS_SELECTOR, '[data-test="inventory-item-name"]')
-        )
-    )
-
-    print("Product found in cart:", product_name.text)
-
-    expected_product = "Sauce Labs Backpack"
-
-    if product_name.text.strip() == expected_product:
-        print("Product successfully added to cart")
-    else:
-        print("Product NOT added to cart")
-
-finally:
+@pytest.fixture
+def driver():
+    driver = webdriver.Chrome()
+    driver.get("https://the-internet.herokuapp.com/iframe")
+    yield driver
     driver.quit()
+
+def test_iframe(driver):
+    wait = WebDriverWait(driver , 10)
+
+    frame = driver.find_element(By.ID,"mce_0_ifr")
+    driver.switch_to.frame(frame)
+
+    close_btn = wait.until((EC.element_to_be_clickable(By.XPATH,"//button[@aria-label = 'Close']")))
+    close_btn.click()
+
+    editor = wait.until((EC.visibility_of_element_located(By.ID,"tinymce")))
+    editor.clear()
+    editor.send_keys("Iframe automation completed")
+
+    driver.switch_to.default_content()
+
+    driver.find_element(By.XPATH,"//button[@aria-label = 'Bold']").click()
+
+    assert "iFrame" in driver.title
+
+
+
+
+
+
+
+
+
+
+
+@pytest.fixture()
+def driver():
+    driver = webdriver.Chrome()
+    driver.get("https://the-internet.herokuapp.com/iframe")
+    yield driver
+    driver.quit()
+
+def test_frame(driver):
+    wait = WebDriverWait(driver,10)
+
+    frame = driver.find_element(By.ID,"mce_0_ifr")
+    driver.switch_to.frame(frame)
+
+    close_btn = wait.until(EC.element_to_be_clickable(By.XPATH,"//div[@aria-label = 'Close']"))
+    close_btn.click()
+
+    editor = driver.find_element(By.ID,"tinymce")
+    editor.clear()
+    editor.send_keys("Frame test successful")
+
+    driver.switch_to.default_content()
+    
+    assert "An iFrame containing the TinyMCE WYSIWYG Editor" in driver.title
+
+
+
+
+
+
+
+@pytest.fixture()
+def driver():
+    driver=webdriver.Chrome()
+    driver.get("https://the-internet.herokuapp.com/javascript_alerts")
+    yield driver
+    driver.quit()
+
+def test_alert_handling(driver):
+    driver.find_element(By.XPATH,"//button[contains(text()='JS Confirm')]").click()
+
+    alert = driver.switch_to.alert
+    alert_text = alert.text
+    alert.dismiss()
+
+    result_text = driver.find_element(By.ID,"result").click()
+    assert "Cancel" in result_text
+
+
+def test_alert_handling(driver):
+    driver.find_element(By.XPATH,"//button[text()='Click for JS Alert']").click()
+    
+    alert = driver.switch_to.alert
+
+    alert_text = alert.text
+    alert.accept()
+
+    assert "I am a JS Alert" in alert_text
+
+
+@pytest.fixture
+def driver():
+    driver=webdriver.Chrome()
+    driver.get("https://the-internet.herokuapp.com/login")
+    yield driver
+    driver.quit()
+
+def test_login(driver):
+    wait=WebDriverWait(driver,10)
+
+    wait.until(EC.visibility_of_element_located((By.ID,"username"))).send_keys("tomsmith")
+    driver.find_element(By.ID,"password").send_keys("SuperSecretPassword!")
+    driver.find_element(By.CSS_SELECTOR,"button[type='submit']").click()
+    
+    msg = wait.until(EC.visibility_of_element_located((By.ID,"flash"))).text
+    assert "You logged into a secure area!" in msg
+
+
+
+@pytest.fixture
+def driver():
+    driver=webdriver.Chrome()
+    driver.get("https://the-internet.herokuapp.com/login")
+    wait=webdriver.Wait
+    yield driver
+    driver.quit()
+
+def test_login_page(driver):
+    driver.find_element(By.ID,"username").send_keys("tomsmith")
+    driver.find_element(By.ID,"password").send_keys("SuperSecretPassword!")
+    driver.find_element(By.CSS_SELECTOR,"button[type='submit']").click()
+    assert "You logged into a secure area!" in driver.page_source
+
+def test_login_negative(driver):
+    driver.find_element(By.ID,"username").send_keys("tomsmith")
+    driver.find_element(By.ID,"password").send_keys("super")
+    driver.find_element(By.CSS_SELECTOR,"button[type='submit']").click()
+    assert "Your password is invalid!" in driver.page_source
+
+@pytest.mark.sanity
+def test_sanity(driver):
+    assert "internet.herokuapp" in driver.current_url
+    assert "Login Page" in driver.title
