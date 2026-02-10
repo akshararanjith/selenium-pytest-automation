@@ -25,7 +25,7 @@ def test_explicit_wait(driver):
     )
 
     # Now safely read the result
-    result = driver.find_element(By.ID, "finish")
+    result = driver.find_element(By.ID, "finish") 
     assert "Hello World!" in result.text
 
 
